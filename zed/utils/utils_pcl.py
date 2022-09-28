@@ -52,7 +52,7 @@ def ros_to_numpy(ros_cloud):
     # points = points[~np.isnan(points)]
     # points = points[~np.isinf(points)]
     # points = np.reshape(points, (pc.shape[0], pc.shape[1],3))
-    print(points.shape)
+    print("Points Shapde: {}".format(points.shape))
     return points 
 
 def ros_to_pcl(ros_cloud):
