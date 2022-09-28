@@ -12,11 +12,11 @@ from utils.utils_pcl import *
 import cv_bridge 
 import cv2 
 
-bridge = cv_bridge.CvBridge()
 
 
 def save_depth_img(msg_depth):
-    img_shape = (640, 360)
+    bridge = cv_bridge.CvBridge()
+    img_shape = (640, 480)
     try:
         cv_image_array = bridge.imgmsg_to_cv2(msg_depth, "32FC1")
         cv_image_array = np.array(cv_image_array, dtype = np.dtype('f8'))
@@ -28,7 +28,7 @@ def save_depth_img(msg_depth):
         print("Max Depth: {}".format(np.max(cv_image_array))) 
         print("Min Depth: {}".format(np.min(cv_image_array)))
         print("Average Depth: {}".format(np.average(cv_image_array)))
-        cv2.imwrite('depth_test2.png', cv_image_array*255)
+        cv2.imwrite('depth_test.png', cv_image_array*1)
         print('SAVED IMAGE')
         # cv2.imshow("Image from my node", cv_image_array*255)
         # cv2.waitKey(0)

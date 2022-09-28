@@ -4,7 +4,7 @@ import numpy as np
 import rospy 
 import cv_bridge 
 from utils.utils_pcl import * 
-from utils.utils.pointcloud import *
+from utils.utils_pointcloud import *
 
 if __name__=="__main__":
     rospy.init_node('ZED')

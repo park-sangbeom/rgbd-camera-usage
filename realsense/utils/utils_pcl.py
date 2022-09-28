@@ -40,25 +40,27 @@ def random_color_gen():
     return [r, g, b]
 
 
-def ros_to_numpy(ros_cloud):
-    pc = ros_numpy.numpify(ros_cloud)
-    np.where(pc["x"]==np.nan, 0, pc["x"])
-    np.where(pc["y"]==np.nan, 0, pc["y"])
-    np.where(pc["z"]==np.nan, 0, pc["z"])
-    height = pc.shape[0]
-    width  = pc.shape[1]
-    points=np.zeros((height,width,3))
-    points[:,:, 0] = pc['x']
-    points[:,:, 1] = pc['y']
-    points[:,:, 2] = pc['z']
-    # points[:,:, 0] = np.nan_to_num(pc['x'])
-    # points[:,:, 1] = np.nan_to_num(pc['y'])
-    # points[:,:, 2] = np.nan_to_num(pc['z'])
-    # print(pc['x'].shape)
-    # points = points[~np.isnan(points)]
-    # points = points[~np.isinf(points)]
-    # points = np.reshape(points, (pc.shape[0], pc.shape[1],3))
-    return points 
+# def ros_to_numpy(ros_cloud):
+#     pc = ros_numpy.numpify(ros_cloud)
+#     print(type(pc))
+#     print(pc)
+#     # np.where(pc["x"]==np.nan, 0, pc["x"])
+#     # np.where(pc["y"]==np.nan, 0, pc["y"])
+#     # np.where(pc["z"]==np.nan, 0, pc["z"])
+#     height = 360#pc.shape[0]
+#     width  = 640#pc.shape[1]
+#     points=np.zeros((height,width,3))
+#     points[:,:, 0] = pc['x']
+#     points[:,:, 1] = pc['y']
+#     points[:,:, 2] = pc['z']
+#     # points[:,:, 0] = np.nan_to_num(pc['x'])
+#     # points[:,:, 1] = np.nan_to_num(pc['y'])
+#     # points[:,:, 2] = np.nan_to_num(pc['z'])
+#     # print(pc['x'].shape)
+#     # points = points[~np.isnan(points)]
+#     # points = points[~np.isinf(points)]
+#     # points = np.reshape(points, (pc.shape[0], pc.shape[1],3))
+#     return points 
 
 def ros_to_pcl(ros_cloud):
     """ Converts a ROS PointCloud2 message to a pcl PointXYZRGB
@@ -77,6 +79,12 @@ def ros_to_pcl(ros_cloud):
     pcl_data.from_list(points_list)
     return pcl_data
 
+def ros_to_numpy(ros_cloud):
+    points_list = []
+    for data in pc2.read_points(ros_cloud, skip_nans=True):
+        points_list.append([data[0], data[1], data[2]])
+    points = np.asarray(points_list)
+    return points
 
 def pcl_to_ros(pcl_array):
     """ Converts a pcl PointXYZRGB to a ROS PointCloud2 message
