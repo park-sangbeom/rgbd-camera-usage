@@ -28,7 +28,7 @@ def save_depth_img(msg_depth):
         print("Max Depth: {}".format(np.max(cv_image_array))) 
         print("Min Depth: {}".format(np.min(cv_image_array)))
         print("Average Depth: {}".format(np.average(cv_image_array)))
-        cv2.imwrite('depth_test2.png', cv_image_array*255)
+        cv2.imwrite('./data/png/ros.png', cv_image_array*1)
         print('SAVED IMAGE')
         # cv2.imshow("Image from my node", cv_image_array*255)
         # cv2.waitKey(0)

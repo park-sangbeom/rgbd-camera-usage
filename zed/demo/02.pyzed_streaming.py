@@ -1,38 +1,35 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": []
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3.8.10 64-bit",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.8.10"
-  },
-  "orig_nbformat": 4,
-  "vscode": {
-   "interpreter": {
-    "hash": "e7370f93d1d0cde622a1f8e1c04877d8463912d04d973331ad4851f04de6915a"
-   }
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 2
-}
+import sys 
+sys.path.append("..")
+import utils.zed_viewer as gl
+import pyzed.sl as sl
+
+if __name__ == "__main__":
+    print("Running Depth Sensing sample ... Press 'Esc' to quit")
+
+    init = sl.InitParameters(camera_resolution=sl.RESOLUTION.HD720,
+                                 depth_mode=sl.DEPTH_MODE.ULTRA,
+                                 coordinate_units=sl.UNIT.METER,
+                                 coordinate_system=sl.COORDINATE_SYSTEM.RIGHT_HANDED_Y_UP)
+    zed = sl.Camera()
+    status = zed.open(init)
+    if status != sl.ERROR_CODE.SUCCESS:
+        print(repr(status))
+        exit()
+
+    res = sl.Resolution()
+    res.width = 640#720
+    res.height = 480#404
+
+    camera_model = zed.get_camera_information().camera_model
+    # Create OpenGL viewer
+    viewer = gl.GLViewer()
+    viewer.init(len(sys.argv), sys.argv, camera_model, res)
+
+    point_cloud = sl.Mat(res.width, res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
+    while viewer.is_available():
+        if zed.grab() == sl.ERROR_CODE.SUCCESS:
+            zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA,sl.MEM.CPU, res)
+            viewer.updateData(point_cloud)
+
+    viewer.exit()
+    zed.close()
