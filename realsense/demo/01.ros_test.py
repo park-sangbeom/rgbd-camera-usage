@@ -13,5 +13,5 @@ if __name__ =="__main__":
     rospy.init_node('Realsense')
     mode     = "depth"
     camera   = RealsenseD435i(mode=mode)
-    name = "coffee"
+    name = "test2"
     save_depth_img(msg_depth = camera.depth_image, name = name) 
