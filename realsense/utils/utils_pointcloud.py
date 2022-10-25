@@ -12,6 +12,21 @@ from utils.utils_pcl import *
 import cv_bridge 
 import cv2 
 
+def save_pc(msg_pc, name):
+    np_pc = ros_to_numpy(msg_pc)
+    np.save("./data/npy/{}_pc.npy".format(name), np_pc)
+    fig = plt.figure(figsize=(9,9))
+    ax = fig.gca(projection='3d')
+    plt.title(name, fontsize=20)
+    ax.set_xlabel("x", fontsize=16)
+    ax.set_ylabel("y",fontsize=16)
+    ax.set_zlabel("z", fontsize=16)
+    ax.scatter([point[0] for point in np_pc], [point[1] for point in np_pc], [point[2] for point in np_pc], s=0.05)
+    plt.savefig('./data/png/{}_pc.png'.format(name))
+    print("Max Depth: {}".format(np.max(np_pc))) 
+    print("Min Depth: {}".format(np.min(np_pc)))
+    print("Average Depth: {}".format(np.average(np_pc)))
+    print('SAVED POINTCLOUD')
 
 
 def save_depth_img(msg_depth, name):

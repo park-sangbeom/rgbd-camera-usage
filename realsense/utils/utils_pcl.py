@@ -86,6 +86,18 @@ def ros_to_numpy(ros_cloud):
     points = np.asarray(points_list)
     return points
 
+def ros_to_plot(ros_cloud, name="test"):
+    fig = plt.figure(figsize=(9,9))
+    ax = fig.gca(projection='3d')
+    for data in pc2.read_points(ros_cloud, skip_nans=True):
+        ax.scatter(data[0], data[1], data[2])
+    ax.set_xlabel("x", fontsize=16)
+    ax.set_ylabel("y",fontsize=16)
+    ax.set_zlabel("z", fontsize=16)
+    plt.title("Test", fontsize=20)
+    plt.show()
+    plt.savefig("./data/test/"+name+".png")
+    
 def pcl_to_ros(pcl_array):
     """ Converts a pcl PointXYZRGB to a ROS PointCloud2 message
     
