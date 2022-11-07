@@ -1,6 +1,7 @@
-demo/data/*
+realsense/demo/data/*
 wandb/*
 data/*
+realsense/demo/realworld_data/*
 weights/*
 # Custom
 .vscode/

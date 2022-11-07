@@ -11,6 +11,7 @@ import tf
 from utils.utils_pcl import * 
 import cv_bridge 
 import cv2 
+from utils.utils_projection import *
 
 def save_pc(msg_pc, name):
     np_pc = ros_to_numpy(msg_pc)
@@ -40,17 +41,27 @@ def save_depth_img(msg_depth, name):
 
         cv_image_array = cv2.resize(cv_image_array, img_shape, interpolation = cv2.INTER_CUBIC)
         cv_image_array = cv2.normalize(cv_image_array, cv_image_array, 0, 255, cv2.NORM_MINMAX)
-        np.save("./data/npy/{}_norm.npy".format(name), cv_image_array)
-        cv2.imwrite('./data/png/{}_norm.png'.format(name), cv_image_array*1)
+        cv_image_array = realworld_ortho_proejction(cv_image_array)
         print("Max Depth: {}".format(np.max(cv_image_array))) 
         print("Min Depth: {}".format(np.min(cv_image_array)))
         print("Average Depth: {}".format(np.average(cv_image_array)))
-        print('SAVED IMAGE')
-        # cv2.imshow("Image from my node", cv_image_array*255)
+        if np.isnan(np.max(cv_image_array)) or np.average(cv_image_array)<0.5:
+            print('[Warning] Nan Detected!! Can Not Save IMAGE...')
+
+            return True 
+        else:
+            np.save("./realworld_data/npy/{}_norm.npy".format(name), cv_image_array.astype(np.float32))
+            cv2.imwrite('./realworld_data/png/{}_norm.png'.format(name), cv_image_array*255)
+            print('[Info] SAVED IMAGE')
+            plt.figure(figsize=(10,10))
+            plt.imshow(cv_image_array)
+            plt.show()
+            # cv2.imshow("Image from my node", cv_image_array*255)
+            return False 
+        
         # cv2.waitKey(0)
     except cv_bridge.CvBridgeError as e:
-        print(e)
-
+        print(e) 
 # list를 pcd data로 바꾸는 함수
 def change_list_to_pcd(lista):
     cloud = pcl.PointCloud_PointXYZRGB()
