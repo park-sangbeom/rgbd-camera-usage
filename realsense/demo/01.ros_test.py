@@ -1,4 +1,3 @@
-#%%
 import sys 
 sys.path.append("..")
 sys.path.append("realsense")
@@ -29,7 +28,7 @@ print("Starting from {}!!!".format(start_count))
 
 if __name__ =="__main__":
     rospy.init_node('Realsense')
-    mode     = "depth"
+    mode     = "realsense"
     count    = start_count
     while count<110:
         count+=1

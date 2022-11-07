@@ -27,8 +27,10 @@ def save_pc(msg_pc, name):
     print("Max Depth: {}".format(np.max(np_pc))) 
     print("Min Depth: {}".format(np.min(np_pc)))
     print("Average Depth: {}".format(np.average(np_pc)))
+    new_cloud = pcl.PointCloud()
+    new_cloud.from_array(np_pc.astype(np.float32))
+    pcl.save(new_cloud, '{}.pcd'.format(name)) 
     print('SAVED POINTCLOUD')
-
 
 def save_depth_img(msg_depth, name):
     bridge = cv_bridge.CvBridge()
