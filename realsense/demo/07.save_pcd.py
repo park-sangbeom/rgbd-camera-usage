@@ -13,6 +13,6 @@ import time
 
 rospy.init_node('Realsense')
 mode     = "pointcloud"
-name     = "test"
+name     = "icp_center_view5"
 camera   = RealsenseD435i(mode=mode)
 save_pc(msg_pc=camera.point_cloud, name=name)

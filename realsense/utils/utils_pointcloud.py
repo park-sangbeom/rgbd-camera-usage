@@ -43,6 +43,8 @@ def save_depth_img(msg_depth, name):
 
         cv_image_array = cv2.resize(cv_image_array, img_shape, interpolation = cv2.INTER_CUBIC)
         cv_image_array = cv2.normalize(cv_image_array, cv_image_array, 0, 255, cv2.NORM_MINMAX)
+        np.save("./realworld_data/npy/{}_raw.npy".format(name), cv_image_array.astype(np.float32))
+        cv2.imwrite('./realworld_data/png/{}_raw.png'.format(name), cv_image_array)
         cv_image_array = realworld_ortho_proejction(cv_image_array)
         print("Max Depth: {}".format(np.max(cv_image_array))) 
         print("Min Depth: {}".format(np.min(cv_image_array)))
