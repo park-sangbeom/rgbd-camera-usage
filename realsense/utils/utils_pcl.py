@@ -22,7 +22,6 @@ import time
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 from random import randint
-import ros_numpy 
 import matplotlib.pyplot as plt 
 from mpl_toolkits.mplot3d import Axes3D
 
