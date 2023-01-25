@@ -61,7 +61,7 @@ def realworld_ortho_proejction(data, INTRINSIC_NAME="realsense"):
 
     # Boundary 
     new_bounds = np.array([[-0.45,0.45], 
-                    [-1.11,-0.3], #[-0.8, -0.2]
+                    [-1.2,-0.39], #[-0.8, -0.2]
                     [-0.795,2]])
 
     ortho_image = get_heightmap(new_points*2.5, new_bounds, pixel_size=0.0045) #1.4
