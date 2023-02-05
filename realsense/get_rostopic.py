@@ -19,6 +19,9 @@ class RealsenseD435i():
         elif mode=="depth": 
             self.depth_image_sub = message_filters.Subscriber('/camera/depth/image_rect_raw', Image)
             self.ts = message_filters.TimeSynchronizer([self.depth_image_sub, self.rgb_image_sub], 10)
+        elif mode=="rgb":
+            self.rgb_image_sub = message_filters.Subscriber('/camera/color/image_raw', Image)
+            self.ts = message_filters.TimeSynchronizer([self.rgb_image_sub, self.rgb_image_sub], 10)
 
         self.ts.registerCallback(self.callback)
         
@@ -37,4 +40,5 @@ class RealsenseD435i():
             self.point_cloud = depth_msg
         elif self.mode=="depth": 
             self.depth_image = depth_msg 
-        
+        elif self.mode=="rgb":
+            self.rgb_image = rgb_msg
