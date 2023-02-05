@@ -32,6 +32,28 @@ def save_pc(msg_pc, name):
     pcl.save(new_cloud, '{}.pcd'.format(name)) 
     print('SAVED POINTCLOUD')
 
+def plot_rgb_imgae(msg_depth, name):
+    bridge = cv_bridge.CvBridge()
+    img_shape = (640, 480)
+    try:
+        cv_image_array = bridge.imgmsg_to_cv2(msg_depth, "32FC1")
+        cv_image_array = np.array(cv_image_array, dtype = np.dtype('f8'))
+        np.save("./data/npy/{}.npy".format(name), cv_image_array)
+        cv2.imwrite('./data/png/{}.png'.format(name), cv_image_array*1)
+
+        cv_image_array = cv2.resize(cv_image_array, img_shape, interpolation = cv2.INTER_CUBIC)
+        cv_image_array = cv2.normalize(cv_image_array, cv_image_array, 0, 255, cv2.NORM_MINMAX)
+        np.save("./realworld_data/npy/{}_raw.npy".format(name), cv_image_array.astype(np.float32))
+        cv2.imwrite('./realworld_data/png/{}_raw.png'.format(name), cv_image_array)
+        plt.figure(figsize=(10,10))
+        plt.imshow(cv_image_array)
+        plt.show()
+
+        return True
+
+    except cv_bridge.CvBridgeError as e:
+        print(e) 
+
 def save_depth_img(msg_depth, name):
     bridge = cv_bridge.CvBridge()
     img_shape = (640, 480)
