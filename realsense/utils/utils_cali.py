@@ -2,8 +2,94 @@ import apriltag
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
-def draw_bbox(results, image, intrinsic_matrix, verbose=False, plot_img=True):
+import apriltag
+import math
+
+def r2rpy(R,unit='rad'):
+    """
+        Rotation matrix to roll,pitch,yaw in radian
+    """
+    roll  = math.atan2(R[2, 1], R[2, 2])
+    pitch = math.atan2(-R[2, 0], (math.sqrt(R[2, 1] ** 2 + R[2, 2] ** 2)))
+    yaw   = math.atan2(R[1, 0], R[0, 0])
+    if unit == 'rad':
+        out = np.array([roll, pitch, yaw])
+    elif unit == 'deg':
+        out = np.array([roll, pitch, yaw])*180/np.pi
+    else:
+        out = None
+        raise Exception("[r2rpy] Unknown unit:[%s]"%(unit))
+    return out    
+
+def get_apriltag_pose(img, img_depth, intrinsic_matrix, tag_size=0.008, verbose_bbox=False, verbose_pose=True):
+    """
+        In AX=XB Equation, (extrinsic calibration) 
+        Get matrix about A that represents detected AprilTag pose in camera coordinate.
+    """
+    # camera parameter setting.
+    fx = intrinsic_matrix.fx
+    fy = intrinsic_matrix.fy
+    ppx = intrinsic_matrix.ppx
+    ppy = intrinsic_matrix.ppy
+
+    cam_params = [fx, fy, ppx, ppy]
+
+    # apriltag setting.
+    detector = apriltag.Detector()
+
+    img_BGR = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    img_Gray = cv2.cvtColor(img_BGR, cv2.COLOR_BGR2GRAY)
+    img_xyz = compute_xyz(img_depth, camera_info=intrinsic_matrix)   # 3d estimated img
+
+    results = detector.detect(img_Gray)
+
+    if verbose_bbox:
+        print(results)
+
+    # Check the detections on the image
+    if len(results) > 0:
+        draw_bbox(results, img, intrinsic_matrix=intrinsic_matrix, verbose_bbox=False, plot_img=False)
+
+        for r in results:
+            (ptA, ptB, ptC, ptD) = r.corners
+            ptB = (int(ptB[0]), int(ptB[1]))
+            ptC = (int(ptC[0]), int(ptC[1]))
+            ptD = (int(ptD[0]), int(ptD[1]))
+            ptA = (int(ptA[0]), int(ptA[1]))
+
+            pose, e0, e1 = detector.detection_pose(detection=r, camera_params=cam_params, tag_size=tag_size)    # should check tag_size
+            
+            poseRotation = pose[:3, :3]
+            poseTranslation = pose[:3, 3]
+    
+            center_point = [int(r.center[i]) for i in range(2)]    # in int type
+
+            rot_april = pose[:3, :3]
+            center_3d = np.array([img_xyz[center_point[1]][center_point[0]]])   # order of pixel array is y, x 
+
+            T_april = np.concatenate((rot_april, center_3d.T), axis=1)  # 4x3 matrix
+            T_april = np.concatenate((T_april, np.array([[0,0,0,1]])), axis=0)  # 4x4 matrix
+        
+            if verbose_pose:
+                cv2.putText(img, f"[RPY]: {r2rpy(rot_april, unit='deg')[0]:.2f}, {r2rpy(rot_april, unit='deg')[1]:.2f}, {r2rpy(rot_april, unit='deg')[2]:.2f}", \
+                            (0, 30), \
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 125), 2)
+                cv2.putText(img, f"[x,y,z]: {center_3d[0][0]:.2f}, {center_3d[0][1]:.2f}, {center_3d[0][2]:.2f}", \
+                            (0, 60), \
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 125), 2)
+                # plt.imshow(img)
+                # plt.show()
+
+        return T_april, img
+
+    else:   # if any detected marker is none, return None.
+        print("There's no april tag")
+        return None, img
+
+
+def draw_bbox(results, image, intrinsic_matrix, verbose_bbox=False, plot_img=True):
     width = intrinsic_matrix.width
     height = intrinsic_matrix.height
 
@@ -29,7 +115,7 @@ def draw_bbox(results, image, intrinsic_matrix, verbose=False, plot_img=True):
         # draw the tag family on the image
         tagFamily = r.tag_family.decode("utf-8")
     
-        if verbose:
+        if verbose_bbox:
             cv2.putText(image, tagFamily, (ptA[0], ptA[1] - 10),
                 cv2.FONT_HERSHEY_SIMPLEX, 5.0, (255, 255, 255), 3)
             # print("Apriltag name: {}".format(tagFamily))
@@ -97,48 +183,3 @@ def compute_xyz(depth_img, camera_info):
     # Order of y_ e is reversed !
     xyz_img = np.stack([-y_e, x_e, z_e], axis=-1) # Shape: [H x W x 3]
     return xyz_img
-
-def get_apriltag_pose(img, img_depth, intrinsic_matrix, tag_size=0.008):
-    """
-        In AX=XB Equation, (extrinsic calibration) 
-        Get matrix about A that represents detected AprilTag pose in camera coordinate.
-    """
-    # camera parameter setting.
-    fx = intrinsic_matrix.fx
-    fy = intrinsic_matrix.fy
-    ppx = intrinsic_matrix.ppx
-    ppy = intrinsic_matrix.ppy
-
-    cam_params = [fx, fy, ppx, ppy]
-
-    # apriltag setting.
-    detector = apriltag.Detector()
-
-    img_BGR = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    img_Gray = cv2.cvtColor(img_BGR, cv2.COLOR_BGR2GRAY)
-    img_xyz = compute_xyz(img_depth, camera_info=intrinsic_matrix)   # 3d estimated img
-
-    results = detector.detect(img_Gray)
-
-    # Check the detections on the image
-    if len(results) > 0:
-        draw_bbox(results, img, verbose=False)
-
-        for r in results:
-            pose, e0, e1 = detector.detection_pose(detection=r, camera_params=cam_params, tag_size=tag_size)    # should check tag_size
-            
-            poseRotation = pose[:3, :3]
-            poseTranslation = pose[:3, 3]
-    
-            center_point = [int(r.center[i]) for i in range(2)]    # in int type
-
-            rot_april = pose[:3, :3]
-            center_3d = np.array([img_xyz[center_point[1]][center_point[0]]])   # order of pixel array is y, x 
-
-            T_april = np.concatenate((rot_april, center_3d.T), axis=1)  # 4x3 matrix
-            T_april = np.concatenate((T_april, np.array([[0,0,0,1]])), axis=0)  # 4x4 matrix
-
-        return T_april
-
-    else:   # if any detected marker is none, return None.
-        return None
