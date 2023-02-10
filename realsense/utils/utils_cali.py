@@ -67,7 +67,7 @@ def get_apriltag_pose(img, img_depth, intrinsic_matrix, tag_size=0.008, verbose_
             center_point = [int(r.center[i]) for i in range(2)]    # in int type
 
             rot_april = pose[:3, :3]
-            center_3d = np.array([img_xyz[center_point[1]][center_point[0]]])   # order of pixel array is y, x 
+            center_3d = np.array([img_xyz[center_point[1]][center_point[0]]])   # order of pixel array is y, x
 
             T_april = np.concatenate((rot_april, center_3d.T), axis=1)  # 4x3 matrix
             T_april = np.concatenate((T_april, np.array([[0,0,0,1]])), axis=0)  # 4x4 matrix
@@ -176,12 +176,17 @@ def compute_xyz(depth_img, camera_info):
 
     indices = np.indices((height, width), dtype=np.float32).transpose(1, 2, 0)
     
+    # depth scale is 0.001 m
     z_e = depth_img
     x_e = (indices[..., 1] - cx) * z_e / fx
     y_e = (indices[..., 0] - cy) * z_e / fy
+
+    # x_e *= 0.001
+    # y_e *= 0.001
+    # z_e *= 0.001
     
     # Order of y_ e is reversed !
-    xyz_img = np.stack([-y_e, x_e, z_e], axis=-1) # Shape: [H x W x 3]
+    xyz_img = np.stack([-y_e*0.001, x_e*0.001, z_e*0.001], axis=-1) # Shape: [H x W x 3]
     return xyz_img
 
 import numpy as np
