@@ -183,3 +183,258 @@ def compute_xyz(depth_img, camera_info):
     # Order of y_ e is reversed !
     xyz_img = np.stack([-y_e, x_e, z_e], axis=-1) # Shape: [H x W x 3]
     return xyz_img
+
+import numpy as np
+import scipy
+# from util_fk import T2axisangle, skew, T2aa
+
+def T2axisangle(T):
+    """
+        T to axis-angle representation.
+    """   
+    R = T[:3,:3]
+
+    theta_axisangle = math.acos((np.trace(R)-1)/2)    # in rad unit.
+
+    prefix_multiplier = 1 / (2*math.sin(theta_axisangle))
+
+    rx = prefix_multiplier * (R[2][1] - R[1][2]) * theta_axisangle
+    ry = prefix_multiplier * (R[0][2] - R[2][0]) * theta_axisangle
+    rz = prefix_multiplier * (R[1][0] - R[0][1]) * theta_axisangle
+
+    rot_axisangle = np.array([rx, ry, rz])
+
+    return rot_axisangle, theta_axisangle
+
+def skew(R):    # return ske
+    """
+        Convert to skew matrix.
+    """   
+    return np.array([[0, -R[2], R[1]],
+                     [R[2], 0, -R[0]],
+                     [-R[1], R[0], 0]])
+
+
+def T2aa(T):
+    T = np.array(T, dtype=np.float64, copy=False)
+
+    rot = T[:3, :3]
+    # direction: unit eigenvector of R33 corresponding to eigenvalue of 1
+    w, W = np.linalg.eig(rot.T)
+    
+    i = np.where(abs(np.real(w) - 1.0) < 1e-8)[0]
+    if not len(i):
+        raise ValueError("no unit eigenvector corresponding to eigenvalue 1")
+    
+    axis = np.real(W[:, i[-1]]).squeeze()
+    # point: unit eigenvector of R corresponding to eigenvalue of 1
+    w, Q = np.linalg.eig(T)
+    
+    i = np.where(abs(np.real(w) - 1.0) < 1e-8)[0]
+    if not len(i):
+        raise ValueError("no unit eigenvector corresponding to eigenvalue 1")
+
+    point = np.real(Q[:, i[-1]]).squeeze()
+    point /= point[3]
+
+    # rotation angle depending on axis
+    cosa = (np.trace(rot) - 1.0) / 2.0
+    if abs(axis[2]) > 1e-8:
+        sina = (T[1, 0] + (cosa-1.0)*axis[0]*axis[1]) / axis[2]
+    elif abs(axis[1]) > 1e-8:
+        sina = (T[0, 2] + (cosa-1.0)*axis[0]*axis[2]) / axis[1]
+    else:
+        sina = (T[2, 1] + (cosa-1.0)*axis[1]*axis[2]) / axis[0]
+
+    angle = math.atan2(sina, cosa)
+    return axis, angle, point
+
+
+def log_group_skew(T):
+    """
+        Convert to Log matrix form. Return skew matrix form.
+        This is code of Lemma 2.
+    """
+    R = T[0:3, 0:3] # Rotation matrix
+    # Lemma 2
+    theta = np.arccos((np.trace(R) - 1)/2)
+
+    logr = np.array([R[2,1] - R[1,2], R[0,2] - R[2,0], R[1,0] - R[0,1]]) * theta / (2*np.sin(theta))
+    return logr # return skew matrix form
+
+def log_group_matrix(T):
+    """
+        Convert to Log matrix form. Return 3x3 matrix form.
+        This is code of Lemma 2.
+    """
+    R = T[0:3, 0:3] # Rotation matrix
+    # Lemma 2
+    theta = np.arccos((np.trace(R) - 1)/2)
+
+    theta_ = R - R.T
+    log_r = theta_ * theta / (2*np.sin(theta))
+    return log_r
+
+def get_extrinsic_calibration_park(A, B):
+    """
+        Solve AX=XB calibration.
+    """
+
+    data_num = len(A)
+    
+    M = np.zeros((3,3))
+    C = np.zeros((3*data_num, 3))
+    d = np.zeros((3*data_num, 1))
+
+    # columns of matrix A, B
+    alpha = log_group_skew(A[0])     # 3 x 1
+    beta = log_group_skew(B[0])      # 3 x 1
+    alpha_2 = log_group_skew(A[1]) # 3 x 1
+    beta_2 = log_group_skew(B[1])  # 3 x 1
+    alpha_3 = np.cross(alpha, alpha_2)  # 3 x 1
+    beta_3 = np.cross(beta, beta_2)     # 3 x 1
+
+    # print(alpha)
+    # print(alpha_2)
+    # print(beta)
+    # print(beta_2)
+    # assert np.array_equal(np.cross(alpha, alpha_2), np.zeros(3)) 
+    # assert np.array_equal(np.cross(beta, beta_2), np.zeros(3))
+
+    # M = \Sigma (beta * alpha.T)
+    M1 = np.dot(beta.reshape(3,1),alpha.reshape(3,1).T)
+    M2 = np.dot(beta_2.reshape(3,1),alpha_2.reshape(3,1).T)
+    M3 = np.dot(beta_3.reshape(3,1),alpha_3.reshape(3,1).T)
+    M = M1+M2+M3
+
+    # theta_x = (M.T * M)^(-1/2) * M.T    
+    # theta_x = np.dot(np.sqrt(np.linalg.inv((np.dot(M.T, M)))), M.T)
+    # RuntimeWarning: invalid value encountered in sqrt: np.sqrt results nan values
+    theta_x = np.dot(scipy.linalg.sqrtm(np.linalg.inv((np.dot(M.T, M)))), M.T)  # rotational info
+
+    # A_ = np.array([alpha, alpha_2, alpha_3])
+    # B_ = np.array([beta, beta_2, beta_3])
+    # B_inv = np.linalg.inv(B_)
+    # theta_x = A * B_inv
+
+    for i in range(data_num):
+        A_rot   = A[i][0:3,0:3]
+        A_trans = A[i][0:3, 3]
+        B_rot   = B[i][0:3,0:3]
+        B_trans = B[i][0:3, 3]
+        
+        C[3*i:3*i+3, :] = np.eye(3) - A_rot
+        d[3*i:3*i+3, 0] = A_trans - np.dot(theta_x, B_trans)
+
+
+    b_x = np.dot(np.linalg.inv(np.dot(C.T, C)), np.dot(C.T, d))     # translational info
+
+    return theta_x, b_x
+
+
+def estimate_translation(A, B, Rx):
+    """
+    Estimate the translation component of :math:`\hat{X}` in :math:`AX=XB`. This
+    requires the estimation of the rotation component :math:`\hat{R}_x`
+    Parameters
+    ----------
+    A: list
+        List of homogeneous transformations with the relative motion of the
+        end-effector
+    B: list
+        List of homogeneous transformations with the relative motion of the
+        calibration pattern (often called `object`)
+    Rx: array_like
+        Estimate of the rotation component (rotation matrix) of :math:`\hat{X}`
+    Returns
+    -------
+    tx: array_like
+        The estimated translation component (XYZ value) of :math:`\hat{X}`
+    """
+    C = []
+    d = []
+    for Ai, Bi in zip(A, B):
+        ta = Ai[:3, 3]
+        tb = Bi[:3, 3]
+        C.append(Ai[:3, :3]-np.eye(3))
+        d.append(np.dot(Rx, tb)-ta)
+    C = np.array(C)
+    C.shape = (-1, 3)
+    d = np.array(d).flatten()
+    tx, residuals, rank, s = np.linalg.lstsq(C, d, rcond=-1)
+    
+    return tx.flatten()
+
+
+def get_extrinsic_calibration_tsai(A, B):
+    """
+        Implementation of Tsai method Extrinsic calibration.
+    """
+    norm = np.linalg.norm
+    C = []
+    d = []
+
+    for Ai, Bi in zip(A, B):
+        # Transform the matrices to their axis-angle representation
+        # r_gij, theta_gij = T2axisangle(Ai)
+        # r_cij, theta_cij = T2axisangle(Bi)
+
+        r_gij, theta_gij, _ = T2aa(Ai)
+        r_cij, theta_cij, _ = T2aa(Bi)
+
+        # Tsai uses a modified version of the angle-axis representation
+        Pgij = 2*np.sin(theta_gij/2.)*r_gij
+        Pcij = 2*np.sin(theta_cij/2.)*r_cij
+
+        # Use C and d to avoid overlapping with the input A-B
+        C.append(skew(Pgij+Pcij))
+        d.append(Pcij-Pgij)
+
+    # Estimate Rx
+    C = np.array(C)
+    C.shape = (-1, 3)
+
+    d = np.array(d).flatten()
+
+    Pcg_, residuals, rank, s = np.linalg.lstsq(C, d, rcond=-1)
+    Pcg = 2*Pcg_ / np.sqrt(1 + norm(Pcg_)**2)
+
+    R1 = (1 - norm(Pcg)**2/2.) * np.eye(3)
+    R2 = (np.dot(Pcg.reshape(3, 1), Pcg.reshape(1, 3)) +
+            np.sqrt(4-norm(Pcg)**2) * skew(Pcg)) / 2.
+    Rx = R1 + R2
+
+    # Estimate tx
+    tx = estimate_translation(A, B, Rx)
+    
+    # Return X
+    X = np.eye(4)
+    X[:3, :3] = Rx
+    X[:3, 3] = tx
+    return X
+
+#### Method 2: Angle-axis representation. (Frank. Park, 1994)
+def get_extrinsic_calibration_frank(A, B):
+    M = np.zeros((3, 3))
+    for Ai, Bi in zip(A, B):
+        # Transform the matrices to their axis-angle representation
+        axis, angle, _ = T2aa(Ai)
+        alpha = angle*axis
+
+        axis, angle, _ = T2aa(Bi)
+        beta = angle*axis
+
+        # Compute M
+        M += np.dot(beta.reshape(3, 1), alpha.reshape(1, 3))
+        
+    # Estimate Rx
+    Rx = np.dot(np.linalg.inv(scipy.linalg.sqrtm(np.dot(M.T, M))), M.T)
+    # Estimate tx
+    tx = estimate_translation(A, B, Rx)
+
+    # Return T
+    T = np.eye(4)
+    T[:3, :3] = Rx
+    T[:3, 3] = tx
+    
+    return T
